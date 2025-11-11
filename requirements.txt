@@ -1,0 +1,16 @@
+# Core dependencies
+PyQt6>=6.6.0
+scikit-rf>=0.30.0
+numpy>=1.26.0
+matplotlib>=3.8.0
+pydantic>=2.5.0
+
+
+
+
+
+
+
+
+
+
