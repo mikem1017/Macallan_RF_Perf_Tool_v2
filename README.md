@@ -6,8 +6,8 @@ A full-featured RF performance analysis tool for plotting S-parameters and compa
 
 - **Device Maintenance**: CRUD operations for device configurations and test criteria
 - **Test Setup**: Load and analyze RF measurement files (Touchstone S2P-S10P)
-- **Plotting**: Interactive plotting with filtering, axis controls, and export capabilities
-- **Compliance Testing**: Automatic pass/fail evaluation against device specifications
+- **Plotting**: Interactive plotting with filtering, axis controls (fixed 10-interval ticks), and export capabilities
+- **Compliance Testing**: Automatic pass/fail evaluation against device specifications (gain range, gain flatness, VSWR, and OOB rejection)
 
 ## Requirements
 

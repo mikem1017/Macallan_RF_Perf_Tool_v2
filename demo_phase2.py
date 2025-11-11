@@ -89,7 +89,7 @@ def demo_phase2():
         )
         
         print(f"    Gain Range: {pri_min_gain:.2f} to {pri_max_gain:.2f} dB")
-        print(f"    Flatness (max - min): {pri_flatness:.2f} dB")
+        print(f"    Gain Flatness (max - min): {pri_flatness:.2f} dB")
         print(f"    Lowest In-Band Gain: {pri_lowest:.2f} dB")
         
         # RED calculations
@@ -105,7 +105,7 @@ def demo_phase2():
         )
         
         print(f"    Gain Range: {red_min_gain:.2f} to {red_max_gain:.2f} dB")
-        print(f"    Flatness (max - min): {red_flatness:.2f} dB")
+        print(f"    Gain Flatness (max - min): {red_flatness:.2f} dB")
         print(f"    Lowest In-Band Gain: {red_lowest:.2f} dB")
         print()
         
@@ -148,7 +148,7 @@ def demo_phase2():
     print()
     print("Example Criteria for S21:")
     print("  - Gain Range: 27.5 to 31.3 dB")
-    print("  - Flatness: <= 2.3 dB")
+    print("  - Gain Flatness: <= 2.3 dB")
     print("  - VSWR Port 1: <= 2.0")
     print()
     
@@ -174,7 +174,7 @@ def demo_phase2():
     print(f"    Criteria: 27.5 to 31.3 dB")
     print(f"    Result: {'PASS' if gain_pass else 'FAIL'}")
     print()
-    print(f"  Flatness: {pri_flat:.2f} dB")
+    print(f"  Gain Flatness: {pri_flat:.2f} dB")
     print(f"    Criteria: <= 2.3 dB")
     print(f"    Result: {'PASS' if flat_pass else 'FAIL'}")
     print()
@@ -203,7 +203,7 @@ def demo_phase2():
     print(f"    Criteria: 27.5 to 31.3 dB")
     print(f"    Result: {'PASS' if gain_pass else 'FAIL'}")
     print()
-    print(f"  Flatness: {red_flat:.2f} dB")
+    print(f"  Gain Flatness: {red_flat:.2f} dB")
     print(f"    Criteria: <= 2.3 dB")
     print(f"    Result: {'PASS' if flat_pass else 'FAIL'}")
     print()

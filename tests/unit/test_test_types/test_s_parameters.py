@@ -75,12 +75,12 @@ class TestSParametersTestType:
                 max_value=31.3,
                 unit="dB"
             ),
-            # Flatness criteria (generic)
+            # Gain flatness criteria (generic)
             TestCriteria(
                 device_id=device_id,
                 test_type="S-Parameters",
                 test_stage="SIT",
-                requirement_name="Flatness",
+                requirement_name="Gain Flatness",
                 criteria_type="max",
                 max_value=2.3,
                 unit="dB"

@@ -189,6 +189,9 @@ class TestCriteriaEditor(QWidget):
             self._gain_mins = {}
             self._gain_maxs = {}
             self._vswr_maxs = {}
+            self._flatness_maxs = {}
+        if not hasattr(self, '_flatness_maxs'):
+            self._flatness_maxs = {}
         
         self._gain_mins[test_stage] = self._gain_min
         self._gain_maxs[test_stage] = self._gain_max
@@ -200,6 +203,14 @@ class TestCriteriaEditor(QWidget):
         self._vswr_max.setDecimals(2)
         form_layout.addRow("VSWR Max:", self._vswr_max)
         self._vswr_maxs[test_stage] = self._vswr_max
+
+        # Gain Flatness (max)
+        self._flatness_max = QDoubleSpinBox()
+        self._flatness_max.setRange(0.0, 20.0)
+        self._flatness_max.setDecimals(2)
+        self._flatness_max.setSuffix(" dB")
+        form_layout.addRow("Gain Flatness Max:", self._flatness_max)
+        self._flatness_maxs[test_stage] = self._flatness_max
         
         form_group.setLayout(form_layout)
         layout.addWidget(form_group)
@@ -418,6 +429,8 @@ class TestCriteriaEditor(QWidget):
                     continue
                 if not hasattr(self, '_vswr_maxs') or stage not in self._vswr_maxs:
                     continue
+                if not hasattr(self, '_flatness_maxs') or stage not in self._flatness_maxs:
+                    continue
                 if not hasattr(self, '_oob_tables') or stage not in self._oob_tables:
                     continue
                 
@@ -436,6 +449,16 @@ class TestCriteriaEditor(QWidget):
                     c = vswr[0]
                     if self._vswr_maxs.get(stage):
                         self._vswr_maxs[stage].setValue(c.max_value or 1.0)
+
+                # Find Gain Flatness criteria (supports legacy name "Flatness")
+                flatness = [
+                    c for c in criteria
+                    if c.requirement_name in ("Gain Flatness", "Flatness")
+                ]
+                if flatness:
+                    c = flatness[0]
+                    if self._flatness_maxs.get(stage):
+                        self._flatness_maxs[stage].setValue(c.max_value or 0.0)
                 
                 # Find OOB criteria
                 oob_criteria = [c for c in criteria if "OOB" in c.requirement_name]
@@ -518,6 +541,40 @@ class TestCriteriaEditor(QWidget):
                         unit=""
                     )
                     self.device_service.add_criteria(c)
+
+                # Save Gain Flatness (max)
+                flatness_max = self._flatness_maxs[stage].value()
+                criteria = self.device_service.get_criteria_for_device(
+                    self.device.id, self.test_type, stage
+                )
+                flatness = [
+                    c for c in criteria
+                    if c.requirement_name in ("Gain Flatness", "Flatness")
+                ]
+
+                if flatness_max > 0.0:
+                    if flatness:
+                        c = flatness[0]
+                        c.requirement_name = "Gain Flatness"
+                        c.criteria_type = "max"
+                        c.max_value = flatness_max
+                        c.min_value = None
+                        c.unit = "dB"
+                        self.device_service.update_criteria(c)
+                    else:
+                        c = TestCriteria(
+                            device_id=self.device.id,
+                            test_type=self.test_type,
+                            test_stage=stage,
+                            requirement_name="Gain Flatness",
+                            criteria_type="max",
+                            max_value=flatness_max,
+                            unit="dB"
+                        )
+                        self.device_service.add_criteria(c)
+                else:
+                    for c in flatness:
+                        self.device_service.delete_criteria(c.id)
                 
                 # Save OOB requirements
                 table = self._oob_tables[stage]

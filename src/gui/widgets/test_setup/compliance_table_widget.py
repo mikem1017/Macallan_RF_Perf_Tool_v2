@@ -310,6 +310,7 @@ class ComplianceTableWidget(QWidget):
     def _get_criterion_base_name(self, result: TestResult) -> str:
         """Get base criterion name (without S-parameter)."""
         # Get criterion from service to get requirement_name
+        criteria = None
         try:
             criteria_repo = self.compliance_service.criteria_repo
             criteria = criteria_repo.get_by_id(result.test_criteria_id)
@@ -443,7 +444,10 @@ class ComplianceTableWidget(QWidget):
             pass
         
         # Default: format as single value
-        return f"{value:.2f}"
+        unit_suffix = ""
+        if criteria and criteria.unit:
+            unit_suffix = f" {criteria.unit}"
+        return f"{value:.2f}{unit_suffix}"
     
     def _set_status_color(self, item: QTreeWidgetItem, column: int, passed: bool) -> None:
         """Set background and foreground colors for pass/fail status."""

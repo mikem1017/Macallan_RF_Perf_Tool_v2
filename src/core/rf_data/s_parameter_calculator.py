@@ -99,23 +99,30 @@ class SParameterCalculator:
         # Get frequency array from network (in Hz)
         freq_hz = network.f
         
-        # Create mask for frequencies within range (inclusive boundaries)
-        mask = (freq_hz >= freq_min_hz) & (freq_hz <= freq_max_hz)
+        if len(freq_hz) == 0:
+            return network.copy()
         
-        # Include boundary points: find closest points to min/max frequencies
-        # This ensures we capture data at range limits even if exact points don't exist
-        if len(freq_hz) > 0:
-            # Find closest points to boundaries
-            idx_min = np.argmin(np.abs(freq_hz - freq_min_hz))
-            idx_max = np.argmin(np.abs(freq_hz - freq_max_hz))
-            
-            # Include these boundary points in the filtered data
-            mask[idx_min] = True
-            mask[idx_max] = True
+        # Ensure freq_min_hz <= freq_max_hz
+        if freq_min_hz > freq_max_hz:
+            freq_min_hz, freq_max_hz = freq_max_hz, freq_min_hz
         
-        # Create filtered network using boolean indexing
-        # This preserves all S-parameter data for the selected frequencies
-        filtered = network[mask]
+        # Clamp desired boundaries to network domain (no extrapolation)
+        global_min = freq_hz.min()
+        global_max = freq_hz.max()
+        target_min = np.clip(freq_min_hz, global_min, global_max)
+        target_max = np.clip(freq_max_hz, global_min, global_max)
+        
+        # Build target frequency list including boundaries
+        interior = freq_hz[(freq_hz >= target_min) & (freq_hz <= target_max)]
+        targets = np.concatenate([interior, [target_min, target_max]])
+        targets = np.unique(np.sort(targets))
+        
+        # Interpolate to requested frequencies (linear)
+        interpolated = network.interpolate(targets)
+        
+        # Final mask to ensure inclusive boundaries
+        mask = (interpolated.f >= target_min - 1e-9) & (interpolated.f <= target_max + 1e-9)
+        filtered = interpolated[mask]
         
         return filtered
     

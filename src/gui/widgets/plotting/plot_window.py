@@ -969,6 +969,23 @@ class PlotWindow(QMainWindow):
         collection.set_capstyle('round')
         ax.add_collection(collection)
 
+    def _apply_fixed_ticks(self, ax) -> None:
+        """Force axes to display 10 uniform intervals regardless of limits."""
+        import numpy as np
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+        
+        if not math.isclose(x_min, x_max):
+            x_ticks = np.linspace(x_min, x_max, 11)
+            ax.set_xticks(x_ticks)
+            ax.set_xticklabels([f"{tick:.3f}" for tick in x_ticks])
+        if not math.isclose(y_min, y_max):
+            y_ticks = np.linspace(y_min, y_max, 11)
+            ax.set_yticks(y_ticks)
+        
+        ax.tick_params(axis='x', which='major', labelsize=10, bottom=True, labelbottom=True, length=5, width=1)
+        ax.tick_params(axis='y', which='major', labelsize=10, left=True, labelleft=True, length=5, width=1)
+
     def _render_plot_data(self, plot_data: PlotData) -> None:
         """
         Render plot data to the display.
@@ -1242,49 +1259,12 @@ class PlotWindow(QMainWindow):
             except Exception as e:
                 logger.warning(f"Failed to enable mplcursors: {e}")
         
-        # Set frequency ticks explicitly - do this LAST, right before drawing
-        if self.is_wideband_plot:
-            tick_spacing = 0.25
-        else:
-            tick_spacing = 0.1
-        
-        # Calculate tick positions based on actual x-axis limits
-        import numpy as np
-        x_lims = ax.get_xlim()  # Get the actual limits that will be used
-        first_tick = np.ceil(x_lims[0] / tick_spacing) * tick_spacing
-        last_tick = np.floor(x_lims[1] / tick_spacing) * tick_spacing
-        
-        # Generate tick positions
-        if first_tick <= last_tick:
-            tick_positions = np.arange(first_tick, last_tick + tick_spacing/2, tick_spacing)
-            tick_labels = [f'{pos:.2f}' for pos in tick_positions]
-            
-            # Set ticks and labels explicitly
-            ax.set_xticks(tick_positions)
-            ax.set_xticklabels(tick_labels)
-            
-            logger.info(f"Set {len(tick_positions)} x-axis ticks from {first_tick:.3f} to {last_tick:.3f} GHz")
-        else:
-            logger.warning(f"Invalid tick range: first={first_tick:.3f}, last={last_tick:.3f}")
-        
-        # Force ticks to be visible
-        ax.tick_params(axis='x', which='major', labelsize=10, bottom=True, labelbottom=True, length=5, width=1)
-        ax.xaxis.set_visible(True)
-        
-        # Ensure there's enough space for x-axis labels
+        # Apply fixed tick spacing (10 intervals) and ensure space for labels
+        self._apply_fixed_ticks(ax)
         self.figure.subplots_adjust(bottom=0.15)
         
         # Draw plot
         self.canvas.draw()
-        
-        # Verify ticks after drawing (for debugging)
-        actual_ticks = ax.get_xticks()
-        actual_labels = [label.get_text() for label in ax.get_xticklabels()]
-        logger.info(f"After canvas.draw() - {len(actual_ticks)} ticks, {len(actual_labels)} labels")
-        if actual_ticks.size > 0:
-            logger.debug(f"First tick: {actual_ticks[0]:.3f}, Last tick: {actual_ticks[-1]:.3f}")
-        if actual_labels:
-            logger.debug(f"First label: '{actual_labels[0]}', Last label: '{actual_labels[-1]}'")
         
         logger.info(f"Plot rendered with {len(plotted_lines)} traces")
     

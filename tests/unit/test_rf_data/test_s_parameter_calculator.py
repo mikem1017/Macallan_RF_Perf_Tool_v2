@@ -46,8 +46,10 @@ class TestSParameterCalculator:
         
         # Check that frequencies are within range (or at boundaries)
         freq_ghz = filtered.f / 1e9
-        assert np.all(freq_ghz >= 0.99)  # Allow some tolerance for boundary inclusion
-        assert np.all(freq_ghz <= 2.01)
+        assert np.isclose(freq_ghz[0], 1.0, atol=1e-6)
+        assert np.isclose(freq_ghz[-1], 2.0, atol=1e-6)
+        assert np.all(freq_ghz >= 1.0 - 1e-6)
+        assert np.all(freq_ghz <= 2.0 + 1e-6)
     
     def test_calculate_gain_s21(self, calculator, sample_network):
         """Test gain calculation for S21."""
