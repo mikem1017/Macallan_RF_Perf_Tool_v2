@@ -195,9 +195,12 @@ class PlottingService:
                     logger.debug(f"No S-params selected, using all available: {selected_s_params}")
                 
                 # Process each selected S-parameter
+                logger.debug(f"Processing S-parameters: available={sorted(s_params)}, selected={sorted(selected_s_params)}")
                 for s_param in s_params:
                     if s_param not in selected_s_params:
+                        logger.debug(f"Skipping {s_param} - not in selected set")
                         continue
+                    logger.debug(f"Processing {s_param} for {measurement.path_type}")
                     
                     # Calculate data
                     if is_vswr_plot or is_return_loss_plot:

@@ -535,13 +535,14 @@ class PlotWindow(QMainWindow):
             )
         
         # Create checkboxes for each S-parameter
+        logger.info(f"Creating checkboxes for {len(s_params)} S-parameters: {s_params}")
         for s_param in s_params:
             checkbox = QCheckBox(s_param)
             checkbox.setChecked(True)
             checkbox.stateChanged.connect(self._update_plot)
             self.s_param_checks[s_param] = checkbox
             self.s_param_layout.addWidget(checkbox)
-            logger.debug(f"Created checkbox for {s_param}")
+            logger.info(f"Created checkbox for {s_param} (checked={checkbox.isChecked()})")
     
     def _populate_path_filters(self, device) -> None:
         """Add HG/LG checkboxes if device is in multi-gain mode."""
@@ -678,15 +679,20 @@ class PlotWindow(QMainWindow):
     def _get_selected_s_params(self) -> Set[str]:
         """Get set of selected S-parameters."""
         selected = set()
+        unchecked = []
         for s_param, checkbox in self.s_param_checks.items():
             if checkbox.isChecked():
                 selected.add(s_param)
+            else:
+                unchecked.append(s_param)
         
         import logging
         logger = logging.getLogger(__name__)
         logger.info(f"Selected S-parameters from checkboxes: {sorted(selected)}")
+        if unchecked:
+            logger.warning(f"Unchecked S-parameters: {sorted(unchecked)}")
         logger.info(f"Available S-parameter checkboxes: {sorted(self.s_param_checks.keys())}")
-        logger.info(f"Total checkboxes: {len(self.s_param_checks)}, Selected: {len(selected)}")
+        logger.info(f"Total checkboxes: {len(self.s_param_checks)}, Selected: {len(selected)}, Unchecked: {len(unchecked)}")
         
         return selected
     
