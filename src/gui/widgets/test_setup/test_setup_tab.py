@@ -123,6 +123,26 @@ class TestSetupTab(QWidget):
         stage_layout.addStretch()
         controls_layout.addLayout(stage_layout)
         
+        # Clear All Data button
+        clear_layout = QHBoxLayout()
+        clear_button = QPushButton("Clear All Data")
+        clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #d32f2f;
+                color: white;
+                font-weight: bold;
+                padding: 5px 15px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #b71c1c;
+            }
+        """)
+        clear_button.clicked.connect(self._clear_all_data)
+        clear_layout.addWidget(clear_button)
+        clear_layout.addStretch()
+        controls_layout.addLayout(clear_layout)
+        
         controls_group.setLayout(controls_layout)
         layout.addWidget(controls_group)
         
@@ -198,11 +218,8 @@ class TestSetupTab(QWidget):
         try:
             logger.debug(f"[Device Changed] Loading device with ID: {device_id}")
             
-            # Clear session measurements and compliance table when device changes
-            self.session_measurements.clear()
-            self.measurements_loaded.emit()  # Signal that measurements were cleared
-            self.compliance_table.clear()
-            self._clear_file_displays()
+            # Clear ALL data when device changes (same as Clear button)
+            self._clear_all_data(silent=True)
             
             self.current_device = self.device_service.get_device(device_id)
             if self.current_device:
@@ -443,6 +460,22 @@ class TestSetupTab(QWidget):
             logger.info("Stopping previous file loading worker")
             self.file_loading_worker.terminate()
             self.file_loading_worker.wait()
+        
+        # Remove existing measurements for this device/test_stage/temperature combination
+        # This allows selective replacement (e.g., replace AMB but keep HOT/COLD)
+        if self.current_device:
+            self.session_measurements = [
+                m for m in self.session_measurements
+                if not (
+                    m.device_id == self.current_device.id
+                    and m.test_stage == self.current_test_stage
+                    and m.temperature == temperature
+                )
+            ]
+            # Clear file display for this specific temperature
+            if "S-Parameters" in self.file_display_widgets:
+                if temperature in self.file_display_widgets["S-Parameters"]:
+                    self.file_display_widgets["S-Parameters"][temperature].setText("")
         
         # Show loading message
         StatusBarMessage.show_info(self.status_bar, f"Loading {len(file_paths)} {temperature} files...")
@@ -852,6 +885,35 @@ class TestSetupTab(QWidget):
                         display.setText("\n".join(file_lines))
                     else:
                         display.setText("")
+    
+    def _clear_all_data(self, silent: bool = False) -> None:
+        """
+        Clear all loaded measurement data and reset to initial state.
+        
+        This clears:
+        - All session measurements
+        - Compliance table
+        - All file displays (all temperatures)
+        
+        Args:
+            silent: If True, don't show status message (used when called from device switch)
+        """
+        # Clear session measurements
+        self.session_measurements.clear()
+        self.measurements_loaded.emit()  # Signal that measurements were cleared
+        
+        # Clear compliance table
+        self.compliance_table.clear()
+        
+        # Clear all file displays
+        self._clear_file_displays()
+        
+        if not silent:
+            StatusBarMessage.show_info(
+                self.status_bar,
+                "All measurement data cleared",
+                timeout=2000
+            )
     
     def _clear_file_displays(self) -> None:
         """Clear all file display widgets."""

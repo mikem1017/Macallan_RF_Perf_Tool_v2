@@ -183,10 +183,16 @@ class PlottingService:
                     s_params = [f"S{p}{p}" for p in range(1, network.nports + 1)]
                 else:
                     s_params = device.get_gain_s_parameters(network.nports)
+                    logger.debug(
+                        f"Gain S-parameters for device {device.name}: input_ports={device.input_ports}, "
+                        f"output_ports={device.output_ports}, n_ports={network.nports}, "
+                        f"returned s_params={s_params}"
+                    )
                 
                 # If no S-params selected, use all available
                 if not selected_s_params:
                     selected_s_params = set(s_params)
+                    logger.debug(f"No S-params selected, using all available: {selected_s_params}")
                 
                 # Process each selected S-parameter
                 for s_param in s_params:

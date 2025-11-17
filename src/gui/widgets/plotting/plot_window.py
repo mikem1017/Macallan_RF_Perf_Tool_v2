@@ -314,8 +314,8 @@ class PlotWindow(QMainWindow):
         else:
             self.y_max_spin.setRange(-100.0, 100.0)
             self.y_max_spin.setSuffix(" dB")
-        self.y_max_spin.setDecimals(2)
-        self.y_max_spin.setValue(0.0)  # Default to 0 (auto-scale)
+            self.y_max_spin.setDecimals(2)
+            self.y_max_spin.setValue(0.0)  # Default to 0 (auto-scale)
         axis_limits_layout.addWidget(self.y_max_spin)
         
         # Reset button to clear axis limits (set to 0 for auto-scale)
@@ -528,7 +528,11 @@ class PlotWindow(QMainWindow):
             logger.info(f"Device config: input_ports={device.input_ports}, output_ports={device.output_ports}")
         else:
             s_params = device.get_gain_s_parameters(network.nports)
-            logger.debug(f"Device gain S-parameters: {s_params}")
+            logger.info(
+                f"Device gain S-parameters: input_ports={device.input_ports}, "
+                f"output_ports={device.output_ports}, n_ports={network.nports}, "
+                f"s_params={s_params}"
+            )
         
         # Create checkboxes for each S-parameter
         for s_param in s_params:
@@ -739,7 +743,7 @@ class PlotWindow(QMainWindow):
         
         # Show loading message
         ax.text(0.5, 0.5, "Processing plot data...",
-                ha='center', va='center', transform=ax.transAxes, fontsize=14)
+                   ha='center', va='center', transform=ax.transAxes, fontsize=14)
         self.canvas.draw()
         
         # Get current device and session measurements

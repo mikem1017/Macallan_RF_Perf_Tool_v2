@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem, QHeaderView,
     QPushButton, QApplication, QFileDialog
 )
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QEventLoop
 from PyQt6.QtGui import QColor, QPixmap
 
 from ....core.models.device import Device
@@ -94,9 +94,12 @@ class ComplianceTableWidget(QWidget):
         copy_button = QPushButton("Copy Table to Clipboard")
         copy_button.clicked.connect(self._copy_to_clipboard)
         button_layout.addWidget(copy_button)
-        copy_image_button = QPushButton("Copy as Image")
-        copy_image_button.clicked.connect(self._copy_as_image)
+        copy_image_button = QPushButton("Copy to Clipboard")
+        copy_image_button.clicked.connect(self._copy_image_to_clipboard)
         button_layout.addWidget(copy_image_button)
+        save_image_button = QPushButton("Save Image")
+        save_image_button.clicked.connect(self._save_image)
+        button_layout.addWidget(save_image_button)
         layout.addLayout(button_layout)
     
     def clear(self) -> None:
@@ -577,26 +580,32 @@ class ComplianceTableWidget(QWidget):
         for i in range(root.childCount()):
             restore_item(root.child(i))
     
-    def _copy_as_image(self) -> None:
+    def _capture_table_image(self) -> Optional[QPixmap]:
         """
-        Copy the entire compliance table to clipboard as PNG image.
+        Capture the entire compliance table as an image.
         
         Expands all items to capture the full tree, temporarily resizes widget
-        to show all content, captures the widget, copies to clipboard, and
-        optionally saves to file.
+        to show all content, captures the widget, and returns the pixmap.
+        Also restores the widget state after capture.
+        
+        Returns:
+            QPixmap of the full table, or None if capture fails
         """
         if self.tree.topLevelItemCount() == 0:
             StatusBarMessage.show_warning(
                 self.status_bar,
                 "No data to copy. Please load measurements first."
             )
-            return
+            return None
         
         # Save current expansion state and size
         expansion_state = self._save_expansion_state()
         original_size = self.tree.size()
         original_min_height = self.tree.minimumHeight()
         original_max_height = self.tree.maximumHeight()
+        
+        pixmap_result = [None]  # Use list to allow modification in nested function
+        capture_done = [False]  # Flag to signal capture completion
         
         try:
             # Expand all items to capture full tree
@@ -606,7 +615,7 @@ class ComplianceTableWidget(QWidget):
             QApplication.processEvents()
             
             # Use QTimer to ensure rendering completes before capture
-            def capture_and_copy():
+            def capture_and_process():
                 try:
                     # Calculate the total height needed by iterating through all items
                     # Get the last visible item's bottom position
@@ -656,6 +665,7 @@ class ComplianceTableWidget(QWidget):
                     self.tree.setMinimumHeight(original_min_height)
                     self.tree.setMaximumHeight(original_max_height)
                     self.tree.resize(original_size)
+                    capture_done[0] = True
             
             def _do_capture():
                 try:
@@ -667,39 +677,9 @@ class ComplianceTableWidget(QWidget):
                             self.status_bar,
                             "Failed to capture table image."
                         )
-                        return
-                    
-                    # Copy to clipboard
-                    clipboard = QApplication.clipboard()
-                    clipboard.setPixmap(pixmap)
-                    
-                    # Show file save dialog
-                    file_path, _ = QFileDialog.getSaveFileName(
-                        self,
-                        "Save Compliance Table Image",
-                        "compliance_table.png",
-                        "PNG Files (*.png);;All Files (*)"
-                    )
-                    
-                    if file_path:
-                        # Save to file
-                        if pixmap.save(file_path, "PNG"):
-                            StatusBarMessage.show_info(
-                                self.status_bar,
-                                f"Image copied to clipboard and saved to {file_path}",
-                                timeout=3000
-                            )
-                        else:
-                            StatusBarMessage.show_warning(
-                                self.status_bar,
-                                f"Image copied to clipboard, but failed to save to {file_path}"
-                            )
+                        pixmap_result[0] = None
                     else:
-                        StatusBarMessage.show_info(
-                            self.status_bar,
-                            "Image copied to clipboard",
-                            timeout=3000
-                        )
+                        pixmap_result[0] = pixmap
                     
                     # Restore expansion state and size
                     self._restore_expansion_state(expansion_state)
@@ -711,14 +691,39 @@ class ComplianceTableWidget(QWidget):
                         self.status_bar,
                         f"Failed to capture image: {str(e)}"
                     )
+                    pixmap_result[0] = None
                     # Restore expansion state and size on error
                     self._restore_expansion_state(expansion_state)
                     self.tree.setMinimumHeight(original_min_height)
                     self.tree.setMaximumHeight(original_max_height)
                     self.tree.resize(original_size)
+                finally:
+                    capture_done[0] = True
             
             # Delay capture to ensure rendering completes
-            QTimer.singleShot(100, capture_and_copy)
+            QTimer.singleShot(100, capture_and_process)
+            
+            # Wait for capture to complete using event loop
+            loop = QEventLoop()
+            timeout_timer = QTimer()
+            timeout_timer.setSingleShot(True)
+            timeout_timer.timeout.connect(loop.quit)
+            timeout_timer.start(5000)  # 5 second timeout
+            
+            def check_capture_done():
+                if capture_done[0]:
+                    timeout_timer.stop()
+                    loop.quit()
+            
+            # Check periodically if capture is done
+            check_timer = QTimer()
+            check_timer.timeout.connect(check_capture_done)
+            check_timer.start(50)  # Check every 50ms
+            
+            loop.exec()
+            check_timer.stop()
+            
+            return pixmap_result[0]
             
         except Exception as e:
             # Restore expansion state on error
@@ -728,6 +733,69 @@ class ComplianceTableWidget(QWidget):
             self.tree.resize(original_size)
             StatusBarMessage.show_warning(
                 self.status_bar,
-                f"Failed to copy image: {str(e)}"
+                f"Failed to capture image: {str(e)}"
+            )
+            return None
+    
+    def _copy_image_to_clipboard(self) -> None:
+        """
+        Copy the entire compliance table to clipboard as PNG image.
+        
+        Does not show file save dialog - just copies to clipboard.
+        """
+        pixmap = self._capture_table_image()
+        if pixmap is None:
+            return
+        
+        # Copy to clipboard
+        clipboard = QApplication.clipboard()
+        clipboard.setPixmap(pixmap)
+        
+        StatusBarMessage.show_info(
+            self.status_bar,
+            "Image copied to clipboard",
+            timeout=3000
+        )
+    
+    def _save_image(self) -> None:
+        """
+        Save the entire compliance table as PNG image to file.
+        
+        Also copies to clipboard. Shows file save dialog.
+        """
+        pixmap = self._capture_table_image()
+        if pixmap is None:
+            return
+        
+        # Copy to clipboard first
+        clipboard = QApplication.clipboard()
+        clipboard.setPixmap(pixmap)
+        
+        # Show file save dialog
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Save Compliance Table Image",
+            "compliance_table.png",
+            "PNG Files (*.png);;All Files (*)"
+        )
+        
+        if file_path:
+            # Save to file
+            if pixmap.save(file_path, "PNG"):
+                StatusBarMessage.show_info(
+                    self.status_bar,
+                    f"Image copied to clipboard and saved to {file_path}",
+                    timeout=3000
+                )
+            else:
+                StatusBarMessage.show_warning(
+                    self.status_bar,
+                    f"Image copied to clipboard, but failed to save to {file_path}"
+                )
+        else:
+            StatusBarMessage.show_info(
+                self.status_bar,
+                "Image copied to clipboard",
+                timeout=3000
             )
 
